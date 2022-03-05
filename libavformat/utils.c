@@ -211,6 +211,19 @@ static const AVCodec *find_probe_decoder(AVFormatContext *s, const AVStream *st,
     if (codec_id == AV_CODEC_ID_H264)
         return avcodec_find_decoder_by_name("h264");
 #endif
+#if CONFIG_NVV4L2
+    /* NVV4L2 decoders depend on context init from base decoders */
+    if (codec_id == AV_CODEC_ID_HEVC)
+        return avcodec_find_decoder_by_name("hevc");
+    else if (codec_id == AV_CODEC_ID_MPEG2VIDEO)
+        return avcodec_find_decoder_by_name("mpeg2video");
+    else if (codec_id == AV_CODEC_ID_MPEG4)
+        return avcodec_find_decoder_by_name("mpeg4");
+    else if (codec_id == AV_CODEC_ID_VP8)
+        return avcodec_find_decoder_by_name("vp8"); 
+    else if (codec_id == AV_CODEC_ID_VP9)
+        return avcodec_find_decoder_by_name("vp9");
+#endif
 
     codec = find_decoder(s, st, codec_id);
     if (!codec)
