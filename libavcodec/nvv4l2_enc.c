@@ -28,7 +28,8 @@
 #include <string.h>
 #include <fcntl.h>
 #include <errno.h>
-#include "internal.h"
+#include "codec_internal.h"
+#include "encode.h"
 #include "libavutil/imgutils.h"
 #include "libavutil/log.h"
 #include "libavutil/opt.h"
@@ -1267,7 +1268,7 @@ nvv4l2enc_encode(AVCodecContext *avctx, AVPacket *pkt,
     if (nvv4l2_encoder_get_packet(avctx, ctx, &packet))
         return 0;
 
-    ff_alloc_packet2(avctx, pkt, packet.payload_size, packet.payload_size);
+    ff_alloc_packet(avctx, pkt, packet.payload_size);
 
     memcpy(pkt->data, packet.payload, packet.payload_size);
     pkt->dts = pkt->pts = packet.pts;
@@ -1288,7 +1289,7 @@ static av_cold int nvv4l2enc_close(AVCodecContext *avctx)
     return 0;
 }
 
-static const AVCodecDefault defaults[] = {
+static const FFCodecDefault defaults[] = {
     { "b",     "5M" },
     { "qmin",  "-1" },
     { "qmax",  "-1" },
@@ -1457,20 +1458,20 @@ static const AVOption options_hevc[] = {
 
 #define NVV4L2_ENC(NAME, ID)                                                          \
     NVV4L2_ENC_CLASS(NAME)                                                            \
-    AVCodec ff_##NAME##_nvv4l2_encoder = {                                            \
-        .name           = #NAME "_nvv4l2" ,                                           \
-        .long_name      = NULL_IF_CONFIG_SMALL(#NAME " NVV4L2 HW encoder for Tegra"), \
-        .type           = AVMEDIA_TYPE_VIDEO,                                         \
-        .id             = ID,                                                         \
+    const FFCodec ff_##NAME##_nvv4l2_encoder = {                                            \
+        .p.name           = #NAME "_nvv4l2" ,                                           \
+        .p.long_name      = NULL_IF_CONFIG_SMALL(#NAME " NVV4L2 HW encoder for Tegra"), \
+        .p.type           = AVMEDIA_TYPE_VIDEO,                                         \
+        .p.id             = ID,                                                         \
         .priv_data_size = sizeof(nvv4l2EncodeContext),                                \
         .init           = nvv4l2enc_init,                                             \
         .close          = nvv4l2enc_close,                                            \
-        .encode2        = nvv4l2enc_encode,                                           \
-        .priv_class     = &nvv4l2_##NAME##_enc_class,                                 \
-        .capabilities   = AV_CODEC_CAP_DELAY | AV_CODEC_CAP_HARDWARE,                 \
+        FF_CODEC_ENCODE_CB(nvv4l2enc_encode),                                           \
+        .p.priv_class     = &nvv4l2_##NAME##_enc_class,                                 \
+        .p.capabilities   = AV_CODEC_CAP_DELAY | AV_CODEC_CAP_HARDWARE,                 \
         .defaults       = defaults,                                                   \
-        .wrapper_name   = "nvv4l2",                                                   \
-        .pix_fmts       = (const enum AVPixelFormat[]) { AV_PIX_FMT_YUV420P,          \
+        .p.wrapper_name   = "nvv4l2",                                                   \
+        .p.pix_fmts       = (const enum AVPixelFormat[]) { AV_PIX_FMT_YUV420P,          \
                                                          AV_PIX_FMT_YUV444P,          \
                                                          AV_PIX_FMT_NV12,             \
                                                          AV_PIX_FMT_P010,             \
