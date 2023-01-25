@@ -30,6 +30,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include "internal.h"
+#include "codec_internal.h"
 #include "decode.h"
 #include "thread.h"
 #include "libavutil/log.h"
@@ -1260,22 +1261,22 @@ nvv4l2dec_decode(AVCodecContext *avctx, void *data, int *got_frame,
 
 #define NVV4L2_DEC(NAME, ID, BSFS)                                                    \
     NVV4L2_DEC_CLASS(NAME)                                                            \
-    AVCodec ff_##NAME##_nvv4l2_decoder = {                                            \
-        .name           = #NAME "_nvv4l2",                                            \
-        .long_name      = NULL_IF_CONFIG_SMALL(#NAME " NVV4L2 HW decoder for Tegra"), \
-        .type           = AVMEDIA_TYPE_VIDEO,                                         \
-        .id             = ID,                                                         \
+    const FFCodec ff_##NAME##_nvv4l2_decoder = {                                            \
+        .p.name           = #NAME "_nvv4l2",                                            \
+        .p.long_name      = NULL_IF_CONFIG_SMALL(#NAME " NVV4L2 HW decoder for Tegra"), \
+        .p.type           = AVMEDIA_TYPE_VIDEO,                                         \
+        .p.id             = ID,                                                         \
         .priv_data_size = sizeof(nvv4l2DecodeContext),                                \
         .init           = nvv4l2dec_init,                                             \
         .close          = nvv4l2dec_close,                                            \
-        .decode         = nvv4l2dec_decode,                                           \
+	FF_CODEC_DECODE_CB(nvv4l2dec_decode),					      \
         .flush          = nvv4l2dec_flush,                                            \
-        .priv_class     = &nvv4l2_##NAME##_dec_class,                                 \
-        .capabilities   = AV_CODEC_CAP_DELAY | AV_CODEC_CAP_HARDWARE |                \
+        .p.priv_class     = &nvv4l2_##NAME##_dec_class,                                 \
+        .p.capabilities   = AV_CODEC_CAP_DELAY | AV_CODEC_CAP_HARDWARE |                \
                           AV_CODEC_CAP_AVOID_PROBING,                                 \
         .bsfs           = BSFS,                                                       \
-        .wrapper_name   = "nvv4l2",                                                   \
-        .pix_fmts       =(const enum AVPixelFormat[]){ AV_PIX_FMT_YUV420P,            \
+        .p.wrapper_name   = "nvv4l2",                                                   \
+        .p.pix_fmts       =(const enum AVPixelFormat[]){ AV_PIX_FMT_YUV420P,            \
                                                        AV_PIX_FMT_NV12,               \
                                                        AV_PIX_FMT_NONE },             \
     };
