@@ -2559,6 +2559,9 @@ static int stream_component_open(VideoState *is, int stream_index)
     AVChannelLayout ch_layout = { 0 };
     int ret = 0;
     int stream_lowres = lowres;
+#if CONFIG_NVV4L2
+    int nvv4l2_pix_fmt_ok;
+#endif
 
     if (stream_index < 0 || stream_index >= ic->nb_streams)
         return -1;
@@ -2582,26 +2585,65 @@ static int stream_component_open(VideoState *is, int stream_index)
 
 #if CONFIG_NVV4L2
     /* Reset requested decoder in order to enforce NVV4L2 if possible. */
+    nvv4l2_pix_fmt_ok = avctx->pix_fmt == AV_PIX_FMT_NONE ||
+                        avctx->pix_fmt == AV_PIX_FMT_NV12 ||
+                        avctx->pix_fmt == AV_PIX_FMT_YUV420P;
+
     if (avctx->codec_type == AVMEDIA_TYPE_VIDEO && forced_codec_name) {
-        if (strcmp(forced_codec_name, "h264") == 0)
-            forced_codec_name = NULL;    
-        else if (strcmp(forced_codec_name, "hevc") == 0)
-            forced_codec_name = NULL; 
-        else if (strcmp(forced_codec_name, "mpeg2video") == 0)
-            forced_codec_name = NULL;
-        else if (strcmp(forced_codec_name, "mpeg4") == 0)
-            forced_codec_name = NULL;
-        else if (strcmp(forced_codec_name, "vp8") == 0)
-            forced_codec_name = NULL;
-        else if (strcmp(forced_codec_name, "vp9") == 0 &&
-                 avctx->pix_fmt != AV_PIX_FMT_YUV420P10) {
-            forced_codec_name = NULL;
+        if (nvv4l2_pix_fmt_ok) {
+            /* Force hardware decoding if pixel format supported. */
+            if (strcmp(forced_codec_name, "h264") == 0)
+                forced_codec_name = NULL;
+            else if (strcmp(forced_codec_name, "hevc") == 0)
+                forced_codec_name = NULL;
+            else if (strcmp(forced_codec_name, "mpeg2video") == 0)
+                forced_codec_name = NULL;
+            else if (strcmp(forced_codec_name, "mpeg4") == 0)
+                forced_codec_name = NULL;
+            else if (strcmp(forced_codec_name, "vp8") == 0)
+                forced_codec_name = NULL;
+            else if (strcmp(forced_codec_name, "vp9") == 0)
+                forced_codec_name = NULL;
+        } else {
+            /* Force software decoding if pixel format not supported. */
+            if (strcmp(forced_codec_name, "h264_nvv4l2") == 0)
+                forced_codec_name = (char *)"h264";
+            else if (strcmp(forced_codec_name, "hevc_nvv4l2") == 0)
+                forced_codec_name = (char *)"hevc";
+            else if (strcmp(forced_codec_name, "mpeg2video_nvv4l2") == 0)
+                forced_codec_name = (char *)"mpeg2video";
+            else if (strcmp(forced_codec_name, "mpeg4_nvv4l2") == 0)
+                forced_codec_name = (char *)"mpeg4";
+            else if (strcmp(forced_codec_name, "vp8_nvv4l2") == 0)
+                forced_codec_name = (char *)"vp8";
+            else if (strcmp(forced_codec_name, "vp9_nvv4l2") == 0)
+                forced_codec_name = (char *)"vp9";
         }
     }
 
-    /* NVV4L2 does not support VP9 with YUV420P10. */
-    if (!forced_codec_name && avctx->pix_fmt == AV_PIX_FMT_YUV420P10)
-        forced_codec_name = "vp9";
+    /* Force software decoding if codec name not defined and pixel format not supported. */
+    if (avctx->codec_type == AVMEDIA_TYPE_VIDEO && !forced_codec_name && !nvv4l2_pix_fmt_ok) {
+        switch (avctx->codec_id) {
+        case AV_CODEC_ID_H264:
+            forced_codec_name = (char *)"h264";
+            break;
+        case AV_CODEC_ID_HEVC:
+            forced_codec_name = (char *)"hevc";
+            break;
+        case AV_CODEC_ID_MPEG2VIDEO:
+            forced_codec_name = (char *)"mpeg2video";
+            break;
+        case AV_CODEC_ID_MPEG4:
+            forced_codec_name = (char *)"mpeg4";
+            break;
+        case AV_CODEC_ID_VP8:
+            forced_codec_name = (char *)"vp8";
+            break;
+        case AV_CODEC_ID_VP9:
+            forced_codec_name = (char *)"vp9";
+            break;
+        }
+    }
 #endif
 
     if (forced_codec_name)
