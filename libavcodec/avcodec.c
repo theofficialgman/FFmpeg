@@ -336,8 +336,6 @@ int attribute_align_arg avcodec_open2(AVCodecContext *avctx, const AVCodec *code
             goto free_and_end;
         }
     }
-    if (codec->priv_class)
-        av_assert0(*(const AVClass **)avctx->priv_data == codec->priv_class);
 
 end:
 
