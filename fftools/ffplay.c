@@ -2610,6 +2610,10 @@ static int stream_component_open(VideoState *is, int stream_index)
     nvv4l2_pix_fmt_ok = avctx->pix_fmt == AV_PIX_FMT_NONE ||
                         avctx->pix_fmt == AV_PIX_FMT_NV12 ||
                         avctx->pix_fmt == AV_PIX_FMT_YUV420P;
+    if (avctx->codec_id == AV_CODEC_ID_HEVC)
+        nvv4l2_pix_fmt_ok = avctx->pix_fmt == AV_PIX_FMT_YUV420P10LE ||
+                            avctx->pix_fmt == AV_PIX_FMT_P010 ||
+                            nvv4l2_pix_fmt_ok;
 
     if (avctx->codec_type == AVMEDIA_TYPE_VIDEO && forced_codec_name) {
         if (nvv4l2_pix_fmt_ok) {
