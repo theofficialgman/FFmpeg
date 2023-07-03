@@ -1077,6 +1077,10 @@ static int choose_decoder(const OptionsContext *o, AVFormatContext *s, AVStream 
     nvv4l2_pix_fmt_ok = st->codecpar->format == AV_PIX_FMT_NONE ||
                         st->codecpar->format == AV_PIX_FMT_NV12 ||
                         st->codecpar->format == AV_PIX_FMT_YUV420P;
+    if (st->codecpar->codec_id == AV_CODEC_ID_HEVC)
+        nvv4l2_pix_fmt_ok = st->codecpar->format == AV_PIX_FMT_YUV420P10LE ||
+                            st->codecpar->format == AV_PIX_FMT_P010 ||
+                            nvv4l2_pix_fmt_ok;
 
     /* Force software decoding if codec name not defined and pixel format not supported. */
     if (!codec_name && !nvv4l2_pix_fmt_ok) {
