@@ -988,6 +988,8 @@ static NvCodingType map_avcodec_id(enum AVCodecID id)
 
 static int nvv4l2dec_codec_fallback(AVCodecContext *avctx)
 {
+    const FFCodec *codec2;
+    
     av_log(avctx, AV_LOG_WARNING, "Falling back to software decoding.\n");
 
     switch (avctx->codec_id) {
@@ -1005,10 +1007,12 @@ static int nvv4l2dec_codec_fallback(AVCodecContext *avctx)
         return AVERROR_BUG;
     }
 
+    codec2 = ffcodec(avctx->codec);
+
     av_opt_free(avctx->priv_data);
 
-    if (avctx->codec->priv_data_size > 0) {
-        avctx->priv_data = av_mallocz(avctx->codec->priv_data_size);
+    if (codec2->priv_data_size > 0) {
+        avctx->priv_data = av_mallocz(codec2->priv_data_size);
         if (!avctx->priv_data)
             return AVERROR(ENOMEM);
     }
@@ -1017,7 +1021,7 @@ static int nvv4l2dec_codec_fallback(AVCodecContext *avctx)
         && !(avctx->internal->frame_thread_encoder && (avctx->active_thread_type&FF_THREAD_FRAME))) {
         ff_thread_init(avctx);
     }
-    if (!HAVE_THREADS && !(avctx->codec->caps_internal & FF_CODEC_CAP_AUTO_THREADS))
+    if (!HAVE_THREADS && !(codec2->caps_internal & FF_CODEC_CAP_AUTO_THREADS))
         avctx->thread_count = 1;
 
     if (avctx->codec->priv_class) {
@@ -1025,7 +1029,7 @@ static int nvv4l2dec_codec_fallback(AVCodecContext *avctx)
         av_opt_set_defaults(avctx->priv_data);
     }
 
-    return avctx->codec->init(avctx);
+    return codec2->init(avctx);
 }
 
 static int nvv4l2dec_init(AVCodecContext *avctx)
