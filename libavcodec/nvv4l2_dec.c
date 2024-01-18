@@ -39,9 +39,9 @@
 
 #include "nvv4l2.h"
 
-extern AVCodec ff_h264_decoder;
-extern AVCodec ff_hevc_decoder;
-extern AVCodec ff_vp9_decoder;
+extern const FFCodec ff_h264_decoder;
+extern const FFCodec ff_hevc_decoder;
+extern const FFCodec ff_vp9_decoder;
 
 /*
  ** Output plane format support:
