@@ -1107,24 +1107,33 @@ static int choose_decoder(const OptionsContext *o, AVFormatContext *s, AVStream 
     }
 #endif
 
-    if (!codec_name)
-        return avcodec_find_decoder(st->codecpar->codec_id);
+    if (!codec_name) {
+        *pcodec = avcodec_find_decoder(st->codecpar->codec_id);
+        return 0;
+    }
 
 #if CONFIG_NVV4L2
     if (nvv4l2_pix_fmt_ok) {
         /* Force hardware decoding if pixel format supported. */
-        if (strcmp(codec_name, "h264") == 0)
-            return avcodec_find_decoder(st->codecpar->codec_id);
-        else if (strcmp(codec_name, "hevc") == 0)
-            return avcodec_find_decoder(st->codecpar->codec_id);
-        else if (strcmp(codec_name, "mpeg2video") == 0)
-            return avcodec_find_decoder(st->codecpar->codec_id);
-        else if (strcmp(codec_name, "mpeg4") == 0)
-            return avcodec_find_decoder(st->codecpar->codec_id);
-        else if (strcmp(codec_name, "vp8") == 0)
-            return avcodec_find_decoder(st->codecpar->codec_id);
-        else if (strcmp(codec_name, "vp9") == 0)
-            return avcodec_find_decoder(st->codecpar->codec_id);
+        if (strcmp(codec_name, "h264") == 0) {
+            *pcodec = avcodec_find_decoder(st->codecpar->codec_id);
+            return 0;
+        } else if (strcmp(codec_name, "hevc") == 0) {
+            *pcodec = avcodec_find_decoder(st->codecpar->codec_id);
+            return 0;
+        } else if (strcmp(codec_name, "mpeg2video") == 0) {
+            *pcodec = avcodec_find_decoder(st->codecpar->codec_id);
+            return 0;
+        } else if (strcmp(codec_name, "mpeg4") == 0) {
+            *pcodec = avcodec_find_decoder(st->codecpar->codec_id);
+            return 0;
+        } else if (strcmp(codec_name, "vp8") == 0) {
+            *pcodec = avcodec_find_decoder(st->codecpar->codec_id);
+            return 0;
+        } else if (strcmp(codec_name, "vp9") == 0) {
+            *pcodec = avcodec_find_decoder(st->codecpar->codec_id);
+            return 0;
+        }
     } else {
         /* Force software decoding if pixel format not supported. */
         if (strcmp(codec_name, "h264_nvv4l2") == 0)
@@ -1142,9 +1151,13 @@ static int choose_decoder(const OptionsContext *o, AVFormatContext *s, AVStream 
     }
 #endif
 
-    const AVCodec *codec = find_codec_or_die(codec_name, st->codecpar->codec_type, 0);
-    st->codecpar->codec_id = codec->id;
-    return codec;
+    int ret = find_codec(NULL, codec_name, st->codecpar->codec_type, 0, pcodec);
+    if (ret < 0)
+        return ret;
+    st->codecpar->codec_id = (*pcodec)->id;
+    if (recast_media && st->codecpar->codec_type != (*pcodec)->type)
+        st->codecpar->codec_type = (*pcodec)->type;
+    return 0;
 }
 
 static int guess_input_channel_layout(InputStream *ist, AVCodecParameters *par,
