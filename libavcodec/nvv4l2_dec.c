@@ -1175,12 +1175,11 @@ static int nvv4l2dec_close(AVCodecContext *avctx)
 }
 
 static int
-nvv4l2dec_decode(AVCodecContext *avctx, void *data, int *got_frame,
+nvv4l2dec_decode(AVCodecContext *avctx, AVFrame *avframe, int *got_frame,
                  AVPacket *avpkt)
 {
     nvv4l2DecodeContext *nvv4l2_ctx = avctx->priv_data;
     nvv4l2_ctx_t *ctx = nvv4l2_ctx->ctx;
-    AVFrame *avframe = (AVFrame *)data;
     NvFrame _nvframe = { 0 };
     int processed_size = 0;
     int buf_index = -1;
