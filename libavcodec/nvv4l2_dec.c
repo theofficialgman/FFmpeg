@@ -1193,7 +1193,9 @@ nvv4l2dec_decode(AVCodecContext *avctx, AVFrame *avframe, int *got_frame,
         packet.payload_size = avpkt->size;
         packet.payload = avpkt->data;
         packet.pts = avpkt->pts;
-        packet.user_pts = avctx->reordered_opaque;
+        if (avctx->flags & AV_CODEC_FLAG_COPY_OPAQUE) {
+            packet.user_pts = avctx->opaque;
+        }
 
         if (!nvv4l2_decoder_put_packet(avctx, ctx, &packet)) {
             processed_size = avpkt->size;
@@ -1240,11 +1242,11 @@ nvv4l2dec_decode(AVCodecContext *avctx, AVFrame *avframe, int *got_frame,
     if (_nvframe.pts != AV_NOPTS_VALUE) {
         avframe->pts = _nvframe.pts;
     } else {
-        /*! NOTE: Investigate if setting reordered_opaque to pts instead
+        /*! NOTE: Investigate if setting opaque to pts instead
          *  is better for no-pts streams compatibility.
          */
         avframe->pts = AV_NOPTS_VALUE;
-        avframe->reordered_opaque = _nvframe.user_pts;
+        avframe->opaque = _nvframe.user_pts;
     }
 
     avctx->coded_width = _nvframe.width;
