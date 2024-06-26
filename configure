@@ -3280,7 +3280,6 @@ qsvvpp_select="qsv"
 vaapi_encode_deps="vaapi"
 v4l2_m2m_deps="linux_videodev2_h sem_timedwait"
 nvv4l2_deps="libv4l2 pthreads linux_videodev2_h"
-nvv4l2_extralibs="-lnvbuf_utils"
 
 bilateral_cuda_filter_deps="ffnvcodec"
 bilateral_cuda_filter_deps_any="cuda_nvcc cuda_llvm"

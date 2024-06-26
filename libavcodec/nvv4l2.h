@@ -29,6 +29,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <dlfcn.h>
 #include <libv4l2.h>
 #include <linux/videodev2.h>
 #include "avcodec.h"
@@ -153,6 +154,20 @@ typedef struct {
     uint32_t ratecontrol;
 } NvEncoder;
 
+typedef struct {
+    int (*Raw2NvBuffer)(unsigned char *, unsigned int, unsigned int, unsigned int, int);
+    int (*NvBufferMemUnMap)(int, unsigned int, void **);
+    int (*NvBufferMemMap)(int, unsigned int, NvBufferMemFlags, void **);
+    int (*NvBufferGetParams)(int, NvBufferParams *);
+    void (*NvBufferSessionDestroy)(NvBufferSession);
+    int (*NvBufferDestroy)(int);
+    NvBufferSession (*NvBufferSessionCreate)(void);
+    int (*NvBufferTransform)(int, int, NvBufferTransformParams *);
+    int (*NvBuffer2Raw)(int, unsigned int, unsigned int, unsigned int, unsigned char *);
+    int (*NvBufferCreate)(int *, int, int, NvBufferLayout, NvBufferColorFormat);
+    int (*NvBufferCreateEx)(int *, NvBufferCreateParams *);
+} nvv4l2_op_t;
+
 /**
  * @brief Struct defining the decoder context.
  * The video decoder device node is `/dev/nvhost-nvdec`. The category name
@@ -219,6 +234,9 @@ typedef struct {
 
     NvEncoder *enc;
     AVCodecContext *avctx;
+
+    nvv4l2_op_t ops;
+    void *nvbuf_handle;
 } nvv4l2_ctx_t;
 
 /* NVV4L2 common functions */
@@ -335,5 +353,8 @@ nvv4l2_encoder_get_packet(AVCodecContext *avctx,
                           NvPacket *packet);
 int
 nvv4l2_encoder_close(AVCodecContext *avctx, nvv4l2_ctx_t *ctx);
+
+int
+nvv4l2_load_nvbuf_utils(nvv4l2_ctx_t *ctx);
 
 #endif
