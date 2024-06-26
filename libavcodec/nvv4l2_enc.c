@@ -271,6 +271,11 @@ nvv4l2_ctx_t *nvv4l2_create_encoder(AVCodecContext *avctx,
         return ctx;
     }
 
+    if (nvv4l2_load_nvbuf_utils(ctx) < 0) {
+        av_log(avctx, AV_LOG_ERROR, "Failed to load nvbuf_utils!\n");
+        return AVERROR_BUG;
+    }
+
     /* Initialization. */
     ctx->codec_width = encoder->width;
     ctx->codec_height = encoder->height;
@@ -559,7 +564,7 @@ nvv4l2_ctx_t *nvv4l2_create_encoder(AVCodecContext *avctx,
             iParams.colorFormat++;
         }
 
-        ret = NvBufferCreateEx(&ctx->plane_dma_fd[i], &iParams);
+        ret = ctx->ops.NvBufferCreateEx(&ctx->plane_dma_fd[i], &iParams);
         if (ret) {
             av_log(avctx, AV_LOG_ERROR, "Creation of dmabuf failed!\n");
             ctx->in_error = true;
@@ -720,7 +725,7 @@ int nvv4l2_encoder_put_frame(AVCodecContext *avctx, nvv4l2_ctx_t *ctx,
         av_log(avctx, AV_LOG_VERBOSE, "Plane %d: width %d -> %d\n",
                i, ctx->op_planefmts[i].width, aligned_plane_width);
 
-        Raw2NvBuffer(frame->payload[i], i, aligned_plane_width,
+        ctx->ops.Raw2NvBuffer(frame->payload[i], i, aligned_plane_width,
                      ctx->op_planefmts[i].height, buffer->planes[i].fd);
         buffer->planes[i].bytesused = ctx->op_planefmts[i].width *
                                       ctx->op_planefmts[i].height *
@@ -815,7 +820,7 @@ int nvv4l2_encoder_close(AVCodecContext *avctx, nvv4l2_ctx_t *ctx)
         /* Unmap and destroy all allocated DMA buffers. */
         for (uint32_t i = 0; i < op_num_old_buffers; i++) {
             if (ctx->plane_dma_fd[i] != -1) {
-                ret = NvBufferDestroy(ctx->plane_dma_fd[i]);
+                ret = ctx->ops.NvBufferDestroy(ctx->plane_dma_fd[i]);
                 ctx->plane_dma_fd[i] = -1;
                 if (ret) {
                     av_log(avctx, AV_LOG_ERROR,
@@ -849,6 +854,11 @@ int nvv4l2_encoder_close(AVCodecContext *avctx, nvv4l2_ctx_t *ctx)
         av_log(avctx, AV_LOG_ERROR, "Encoder Run failed\n");
     } else {
         av_log(avctx, AV_LOG_VERBOSE, "Encoder Run is successful\n");
+    }
+
+    if (!ctx->nvbuf_handle) {
+        dlclose(ctx->nvbuf_handle);
+        ctx->nvbuf_handle = NULL;
     }
 
     NVFREE(ctx);

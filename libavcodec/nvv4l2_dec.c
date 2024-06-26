@@ -191,7 +191,7 @@ static void query_set_capture(AVCodecContext *avctx, nvv4l2_ctx_t *ctx)
     /* Destroy all allocated transform/export DMA buffers. */
     for (uint32_t i = 0; i < NV_MAX_BUFFERS; i++) {
         if (ctx->plane_dma_fd[i] != -1) {
-            ret = NvBufferDestroy(ctx->plane_dma_fd[i]);
+            ret = ctx->ops.NvBufferDestroy(ctx->plane_dma_fd[i]);
             if (ret < 0) {
                 av_log(avctx, AV_LOG_ERROR,
                        "Failed to destroy plane buffer!\n");
@@ -231,7 +231,7 @@ static void query_set_capture(AVCodecContext *avctx, nvv4l2_ctx_t *ctx)
     }
 
     for (uint32_t i = 0; i < NV_MAX_BUFFERS; i++) {
-        ret = NvBufferCreateEx(&ctx->plane_dma_fd[i], &input_params);
+        ret = ctx->ops.NvBufferCreateEx(&ctx->plane_dma_fd[i], &input_params);
         if (ret) {
             av_log(avctx, AV_LOG_ERROR, "Creation of dmabuf failed!\n");
             ctx->in_error = true;
@@ -263,7 +263,7 @@ static void query_set_capture(AVCodecContext *avctx, nvv4l2_ctx_t *ctx)
     /* Destroy previous DMA buffers. */
     for (uint32_t i = 0; i < cp_num_old_buffers; i++) {
         if (ctx->dmabuff_fd[i] != -1) {
-            ret = NvBufferDestroy(ctx->dmabuff_fd[i]);
+            ret = ctx->ops.NvBufferDestroy(ctx->dmabuff_fd[i]);
             if (ret) {
                 av_log(avctx, AV_LOG_ERROR,
                        "Failed to Destroy NvBuffer!\n");
@@ -358,7 +358,7 @@ static void query_set_capture(AVCodecContext *avctx, nvv4l2_ctx_t *ctx)
     cap_params.nvbuf_tag = NvBufferTag_VIDEO_DEC;
 
     for (uint32_t i = 0; i < ctx->cp_num_buffers; i++) {
-        ret = NvBufferCreateEx(&ctx->dmabuff_fd[i], &cap_params);
+        ret = ctx->ops.NvBufferCreateEx(&ctx->dmabuff_fd[i], &cap_params);
         if (ret) {
             av_log(avctx, AV_LOG_ERROR, "Failed to create buffers!\n");
             ctx->in_error = true;
@@ -535,7 +535,7 @@ static void *dec_capture_thread(void *arg)
              ** to dump the raw decoded buffer data.
              */
             if (buf_index >= 0) {
-                ret = NvBufferTransform(ctx->dmabuff_fd[v4l2_cp_buf.index],
+                ret = ctx->ops.NvBufferTransform(ctx->dmabuff_fd[v4l2_cp_buf.index],
                                         ctx->plane_dma_fd[buf_index],
                                         &transform_params);
                 if (ret == -1) {
@@ -545,7 +545,7 @@ static void *dec_capture_thread(void *arg)
                     break;
                 }
 
-                ret = NvBufferGetParams(ctx->plane_dma_fd[buf_index],
+                ret = ctx->ops.NvBufferGetParams(ctx->plane_dma_fd[buf_index],
                                         &buf_params);
                 if (ret) {
                     ctx->in_error = true;
@@ -770,6 +770,11 @@ nvv4l2_ctx_t *nvv4l2_create_decoder(AVCodecContext *avctx,
         return ctx;
     }
 
+    if (nvv4l2_load_nvbuf_utils(ctx) < 0) {
+        av_log(avctx, AV_LOG_ERROR, "Failed to load nvbuf_utils!\n");
+        return AVERROR_UNKNOWN;
+    }
+
     /* Initialization. */
     ctx->cp_pixfmt = pix_fmt;
     ctx->op_pixfmt = nvv4l2_map_nvcodec_type(nv_codec_type);
@@ -778,7 +783,7 @@ nvv4l2_ctx_t *nvv4l2_create_decoder(AVCodecContext *avctx,
     ctx->pixfmt_list_ver = nvv4l2_get_pixfmt_list_version(ctx);
 
     /* Get a NvBuffer session for interprocess transforms */
-    ctx->buf_session = NvBufferSessionCreate();
+    ctx->buf_session = ctx->ops.NvBufferSessionCreate();
 
     /* Decoder code assumes that the following do not change.
      ** If another memory type is wanted, relevant changes should be done
@@ -914,7 +919,7 @@ int nvv4l2_decoder_close(AVCodecContext *avctx, nvv4l2_ctx_t *ctx)
         /* All allocated DMA buffers must be destroyed. */
         for (uint32_t i = 0; i < cp_num_old_buffers; i++) {
             if (ctx->dmabuff_fd[i] != -1) {
-                ret = NvBufferDestroy(ctx->dmabuff_fd[i]);
+                ret = ctx->ops.NvBufferDestroy(ctx->dmabuff_fd[i]);
                 if (ret < 0) {
                     av_log(avctx, AV_LOG_ERROR,
                            "Failed to destroy dma buffer!\n");
@@ -926,7 +931,7 @@ int nvv4l2_decoder_close(AVCodecContext *avctx, nvv4l2_ctx_t *ctx)
         /* Destroy all allocated transform/export DMA buffers. */
         for (uint32_t i = 0; i < NV_MAX_BUFFERS; i++) {
             if (ctx->plane_dma_fd[i] != -1) {
-                ret = NvBufferDestroy(ctx->plane_dma_fd[i]);
+                ret = ctx->ops.NvBufferDestroy(ctx->plane_dma_fd[i]);
                 if (ret < 0) {
                     av_log(avctx, AV_LOG_ERROR,
                            "Failed to destroy plane buffer!\n");
@@ -937,7 +942,7 @@ int nvv4l2_decoder_close(AVCodecContext *avctx, nvv4l2_ctx_t *ctx)
 
         /* Destroy NvBuffer session. */
         if (ctx->buf_session)
-            NvBufferSessionDestroy(ctx->buf_session);
+            ctx->ops.NvBufferSessionDestroy(ctx->buf_session);
 
         NVFREE(ctx->export_pool);
 
@@ -959,6 +964,11 @@ int nvv4l2_decoder_close(AVCodecContext *avctx, nvv4l2_ctx_t *ctx)
         av_log(avctx, AV_LOG_VERBOSE, "Decoder Run failed\n");
     } else {
         av_log(avctx, AV_LOG_VERBOSE, "Decoder Run was successful\n");
+    }
+
+    if (!ctx->nvbuf_handle) {
+        dlclose(ctx->nvbuf_handle);
+        ctx->nvbuf_handle = NULL;
     }
 
     NVFREE(ctx);
@@ -1213,14 +1223,14 @@ nvv4l2dec_decode(AVCodecContext *avctx, void *data, int *got_frame,
 
     /* Export decoded frame data. */
     if (buf_index >= 0 && avframe->data[0]) {
-        NvBuffer2Raw(ctx->plane_dma_fd[buf_index], 0,
+        ctx->ops.NvBuffer2Raw(ctx->plane_dma_fd[buf_index], 0,
                      ctx->plane_width[0], ctx->plane_height[0],
                      avframe->data[0]);
-        NvBuffer2Raw(ctx->plane_dma_fd[buf_index], 1,
+        ctx->ops.NvBuffer2Raw(ctx->plane_dma_fd[buf_index], 1,
                      ctx->plane_width[1], ctx->plane_height[1],
                      avframe->data[1]);
         if (ctx->cp_pixfmt == V4L2_PIX_FMT_YUV420M) {
-            NvBuffer2Raw(ctx->plane_dma_fd[buf_index], 2,
+            ctx->ops.NvBuffer2Raw(ctx->plane_dma_fd[buf_index], 2,
                          ctx->plane_width[2], ctx->plane_height[2],
                          avframe->data[2]);
         }

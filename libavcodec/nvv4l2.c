@@ -135,7 +135,7 @@ nvv4l2_map_out(nvv4l2_ctx_t *ctx, struct v4l2_buffer *v4l2_buf,
 
     switch (mem_type) {
     case V4L2_MEMORY_DMABUF:
-        ret = NvBufferGetParams(dma_fd, &params);
+        ret = ctx->ops.NvBufferGetParams(dma_fd, &params);
         if(ret) {
             av_log(ctx->avctx, AV_LOG_ERROR, "GetParams failed!\n");
             pthread_mutex_unlock(&ctx->queue_lock);
@@ -145,7 +145,7 @@ nvv4l2_map_out(nvv4l2_ctx_t *ctx, struct v4l2_buffer *v4l2_buf,
             buffer->planes[i].fd = dma_fd;
             v4l2_buf->m.planes[i].m.fd = dma_fd;
             buffer->planes[i].mem_offset = params.offset[i];
-            ret = NvBufferMemMap(dma_fd, i, NvBufferMem_Read_Write,
+            ret = ctx->ops.NvBufferMemMap(dma_fd, i, NvBufferMem_Read_Write,
                                  (void **)&data);
             if (ret) {
                 ctx->in_error = true;
@@ -182,7 +182,7 @@ nvv4l2_unmap_out(nvv4l2_ctx_t *ctx, int index, enum v4l2_buf_type buf_type,
     switch (mem_type) {
     case V4L2_MEMORY_DMABUF:
         for (uint32_t i = 0; i < buffer->n_planes; i++) {
-            ret = NvBufferMemUnMap(dma_fd, i, (void **)&buffer->planes[i].data);
+            ret = ctx->ops.NvBufferMemUnMap(dma_fd, i, (void **)&buffer->planes[i].data);
             if (ret) {
                 ctx->in_error = true;
                 av_log(ctx->avctx, AV_LOG_ERROR,
@@ -837,7 +837,7 @@ nvv4l2_get_pixfmt_list_version(nvv4l2_ctx_t *ctx)
     iParams.colorFormat = NvBufferColorFormat_NV12;
 
     /* Create assumed NV12 buffer */
-    ret = NvBufferCreateEx(&dma_fd, &iParams);
+    ret = ctx->ops.NvBufferCreateEx(&dma_fd, &iParams);
     if (ret || dma_fd == -1) {
         av_log(ctx->avctx, AV_LOG_ERROR,
                "Error getting NvBuffer Pixel Format list version!\n");
@@ -845,7 +845,7 @@ nvv4l2_get_pixfmt_list_version(nvv4l2_ctx_t *ctx)
     }
 
     /* Query created buffer parameters */
-    ret = NvBufferGetParams(dma_fd, &params);
+    ret = ctx->ops.NvBufferGetParams(dma_fd, &params);
     if (ret) {
         av_log(ctx->avctx, AV_LOG_ERROR,
                "Error getting NvBuffer Pixel Format list version!\n");
@@ -861,7 +861,32 @@ nvv4l2_get_pixfmt_list_version(nvv4l2_ctx_t *ctx)
         version = NvBufferPixFmtVersion_New;
     }
 
-    NvBufferDestroy(dma_fd);
+    ctx->ops.NvBufferDestroy(dma_fd);
 
     return version;
+}
+
+#define LOAD_NV_FUNCTION(ctx, sym) \
+    ctx->ops.sym = (void *)dlsym(ctx->nvbuf_handle, #sym); \
+    if (!ctx->ops.sym) return AVERROR(EINVAL);
+
+int nvv4l2_load_nvbuf_utils(nvv4l2_ctx_t *ctx)
+{
+    ctx->nvbuf_handle = dlopen("libnvbuf_utils.so.1.0.0", RTLD_NOW | RTLD_GLOBAL);
+    if (!ctx->nvbuf_handle)
+        return AVERROR_UNKNOWN;
+
+    LOAD_NV_FUNCTION(ctx, Raw2NvBuffer);
+    LOAD_NV_FUNCTION(ctx, NvBufferMemUnMap);
+    LOAD_NV_FUNCTION(ctx, NvBufferMemMap);
+    LOAD_NV_FUNCTION(ctx, NvBufferGetParams);
+    LOAD_NV_FUNCTION(ctx, NvBufferSessionDestroy);
+    LOAD_NV_FUNCTION(ctx, NvBufferDestroy);
+    LOAD_NV_FUNCTION(ctx, NvBufferSessionCreate);
+    LOAD_NV_FUNCTION(ctx, NvBufferTransform);
+    LOAD_NV_FUNCTION(ctx, NvBuffer2Raw);
+    LOAD_NV_FUNCTION(ctx, NvBufferCreate);
+    LOAD_NV_FUNCTION(ctx, NvBufferCreateEx);
+
+    return 0;
 }
