@@ -773,7 +773,8 @@ nvv4l2_ctx_t *nvv4l2_create_decoder(AVCodecContext *avctx,
 
     if (nvv4l2_load_nvbuf_utils(ctx) < 0) {
         av_log(avctx, AV_LOG_ERROR, "Failed to load nvbuf_utils!\n");
-        return AVERROR_UNKNOWN;
+        ctx->in_error = true;
+        return ctx;
     }
 
     /* Initialization. */
