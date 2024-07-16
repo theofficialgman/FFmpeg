@@ -1002,13 +1002,9 @@ static int nvv4l2dec_codec_fallback(AVCodecContext *avctx)
 
     switch (avctx->codec_id) {
     case AV_CODEC_ID_H264:
-        avctx->codec = &ff_h264_decoder;
-        break;
     case AV_CODEC_ID_HEVC:
-        avctx->codec = &ff_hevc_decoder;
-        break;
     case AV_CODEC_ID_VP9:
-        avctx->codec = &ff_vp9_decoder;
+        avctx->codec = avcodec_find_decoder(avctx->codec_id);
         break;
     default:
         av_log(avctx, AV_LOG_ERROR, "Unsupported codec fallback!\n");
