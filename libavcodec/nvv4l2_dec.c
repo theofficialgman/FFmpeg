@@ -1283,7 +1283,7 @@ nvv4l2dec_decode(AVCodecContext *avctx, AVFrame *avframe, int *got_frame,
 	FF_CODEC_DECODE_CB(nvv4l2dec_decode),					      \
         .flush          = nvv4l2dec_flush,                                            \
         .p.priv_class     = &nvv4l2_##NAME##_dec_class,                                 \
-        .p.capabilities   = AV_CODEC_CAP_DELAY | AV_CODEC_CAP_HARDWARE |                \
+        .p.capabilities   = AV_CODEC_CAP_DELAY |                \
                           AV_CODEC_CAP_AVOID_PROBING,                                 \
         .bsfs           = BSFS,                                                       \
         .p.wrapper_name   = "nvv4l2",                                                   \
