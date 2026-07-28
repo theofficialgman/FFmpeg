@@ -1279,7 +1279,7 @@ nvv4l2dec_decode(AVCodecContext *avctx, void *data, int *got_frame,
         .decode         = nvv4l2dec_decode,                                           \
         .flush          = nvv4l2dec_flush,                                            \
         .priv_class     = &nvv4l2_##NAME##_dec_class,                                 \
-        .capabilities   = AV_CODEC_CAP_DELAY | AV_CODEC_CAP_HARDWARE |                \
+        .capabilities   = AV_CODEC_CAP_DELAY |                \
                           AV_CODEC_CAP_AVOID_PROBING,                                 \
         .bsfs           = BSFS,                                                       \
         .wrapper_name   = "nvv4l2",                                                   \
